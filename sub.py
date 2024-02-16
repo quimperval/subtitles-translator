@@ -1,7 +1,7 @@
 class subtitle:
     
     def __init__(self):
-        print("initializing subtitle item");
+        #print("initializing subtitle item");
         self._texts = []
         self._timeStartAndEnd = None
     
