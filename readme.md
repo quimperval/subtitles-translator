@@ -22,3 +22,18 @@ The script that converts sub to srt considers the below structure
     Format: Layer, Start, End, Style, Actor, MarginL, MarginR, MarginV, Effect, Text
     Dialogue: ,0:00:14.40,0:00:18.12,Default,,0,0,0,,I am a subtitle
 ```
+
+The syntax to use the python script is 
+    
+    python3 translateSubs.py $file es
+    
+where *es* is the destination language, I use the short names of languages used for subtitles, you could add any other language in the code where it says: 
+
+    if(destLanguage.lower()=="es"):
+        destLanguage="Spanish"
+    elif(destLanguage.lower()=="en"):
+        destLanguage="English"
+
+you could add another condition to be added in the prompt in the line: 
+
+    prompt="Please translate the below subtitles to "+destLanguage+" and preserve the time marks. Do not translate the ---BEGIN--- and ---END--- marks:\n"
