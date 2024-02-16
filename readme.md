@@ -12,6 +12,10 @@ This script has a fallback logic that considers failures in the response from op
 
 **This script DOES NOT considering numbering of the subtitles**.
 
+If you have a file with subtitles numbering you can remove it using this command in the terminal
+    
+    awk '$0 ~ /^[0-9]+$/{ next; } { print $0}' subtitle.srt
+
 The script that converts sub to srt considers the below structure
 
 ```
