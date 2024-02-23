@@ -304,10 +304,10 @@ while(position<size):
         #print("result: " + result)
         
         if(result!=None):
-            #print("Something went wrong, checking")
+            print("Something went wrong, checking")
             errorCount = errorCount+1
             if(errorCount>=errorThreshold):
-                #print ("Giving up, errorThreshold was reached")
+                print ("Giving up, errorThreshold was reached")
                 exit()
             if(result=="START_FROM_SCRATCH"):
                 position=0
