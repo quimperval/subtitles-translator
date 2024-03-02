@@ -49,4 +49,11 @@ The script that converts sub to srt considers the below structure
     Dialogue: ,0:00:14.40,0:00:18.12,Default,,0,0,0,,I am a subtitle
 ```
 
+### Reformat the time to use . instead of , for the milliseconds
+
+    sed -E  '/^\s*[0-9]{1,3}:[0-9]{1,3}:[0-9]{1,3},?[0-9]{1,3}\s*-->\s*[0-9]{1,3}:[0-9]{1,3}:[0-9]{1,3},?[0-9]{1,3}$/s/,/\./g'
+
+### Remove the UTF-8 bytes
+
+    sed '1s/^\xEF\xBB\xBF//'
 
