@@ -265,13 +265,13 @@ processedTimeStamps = dict()
 for line in linesList:
     #print (line, end="")
     if(re.search(timeRegex, line)!=None):
+        if(mSub!=None):
+            subsList.append(mSub)    
         mSub = subtitle()
         mSub.timeStartAndEnd = line
         continue
     elif(re.search(blankLine, line)!=None):
-        if(mSub!=None):
-            subsList.append(mSub)
-        mSub = None
+        continue
     else:
         try:
             mSub.add_text(line)
@@ -321,7 +321,7 @@ print("Destfile: " + destFileName);
 
 
 #Create the file
-
+print("\n")
 #print ("Subtitles list: " ,(len(subsList)))
 position=0
 counter=0
@@ -332,9 +332,10 @@ translated = list()
 subsMap = dict()
 errorThreshold=1000
 errorCount=0
-chunkSize=20
+chunkSize=40
 while(position<size):
-    print ("\x1b[KAlready translated: " + str(len(translated)) + " of " +str(len(subsList))+ ": " + str(len(translated)*100/len(subsList)) + "%", end=" \r")
+    sleep(0.01)
+    print ("\x1b[KAlready translated: " + str(len(translated)) + " of " +str(len(subsList))+ ": " + str(len(translated)*100/len(subsList)) + "%; Calling openAI...", end=" \r")
     #print("counter: ", str(counter))
     #print("position: ", str(position))
     xSub = subsList[position]
@@ -352,8 +353,8 @@ while(position<size):
         #print ("************************************")
         #print ("prompt: ")
         #print(prompt+temp)
-        print("\x1b[KCalling openAI...", end='\r')
-        response = chat_gpt_dummy(mKey, prompt+temp)
+        #print("\x1b[KCalling openAI...", end='\r')
+        response = chat_gpt(mKey, prompt+temp)
         #print ("************************************")
         #print (response)
         #print ("************************************")
