@@ -7,6 +7,7 @@ import os
 
 
 def chat_gpt(apiKey, prompt):
+    print(prompt)
     client=OpenAI(api_key=apiKey)
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
@@ -25,7 +26,7 @@ def linesToSubtitleObjects(linesList, subsList):
     None
     """
     mSub = None
-    processedTimeStamps = dict()
+
     for line in linesList:
         #print (line, end="")
         if(re.search(timeRegex, line)!=None):
@@ -274,7 +275,7 @@ calls=0
 temp = "---BEGIN---\n"
 translated = list()
 subsMap = dict()
-errorThreshold=10
+errorThreshold=10000
 errorCount=0
 chunkSize=20
 while(position<size):
@@ -309,7 +310,7 @@ while(position<size):
             #print("Something went wrong, checking")
             errorCount = errorCount+1
             if(errorCount>=errorThreshold):
-                #print ("Giving up, errorThreshold was reached")
+                print ("Giving up, errorThreshold was reached")
                 exit()
             if(result=="START_FROM_SCRATCH"):
                 position=0
@@ -317,10 +318,10 @@ while(position<size):
                 temp = "---BEGIN---\n"
                 continue
             else:
-                #print ("checking the position of the timestamp to reprocess")
-                #print ("Position: " + str(subsMap.get(result)))
+                print ("checking the position of the timestamp to reprocess")
+                print ("Position: " + str(subsMap.get(result)))
                 position = subsMap.get(result)+1
-                #print ("NEw start: " + str(position))
+                print ("New start: " + str(position))
                 counter=0
                 temp = "---BEGIN---\n"
                 continue
