@@ -234,7 +234,7 @@ client = OpenAI(
     api_key="",
 )
 
-timeRegex="^\s*[0-9]{1,3}:[0-9]{1,3}:[0-9]{1,3}\.?[0-9]{1,3}\s*-->\s*[0-9]{1,3}:[0-9]{1,3}:[0-9]{1,3}\.?[0-9]{1,3}$"
+timeRegex="^\s*[0-9]{1,3}:[0-9]{1,3}:[0-9]{1,3}(\.|,)?[0-9]{1,3}\s*-->\s*[0-9]{1,3}:[0-9]{1,3}:[0-9]{1,3}(\.|,)?[0-9]{1,3}$"
 blankLine="^ *$"
 file=open(fileName, "r")
 line = ""
@@ -249,7 +249,7 @@ mSub = None
 subsList = list()
 processedTimeStamps = dict()
 for line in linesList:
-    #print (line, end="")
+    print (line, end="")
     if(re.search(timeRegex, line)!=None):
         mSub = subtitle()
         mSub.timeStartAndEnd = line
@@ -259,6 +259,8 @@ for line in linesList:
             subsList.append(mSub)
         mSub = None
     else:
+        if mSub ==None:
+            print("Msub is none")
         mSub.add_text(line)
 
 if(mSub!=None):
@@ -295,9 +297,9 @@ while(position<size):
         #print(prompt+temp)
         print("Calling openAI...")
         response = chat_gpt(mKey, prompt+temp)
-        #print ("************************************")
-        #print (response)
-        #print ("************************************")
+        print ("************************************")
+        print (response)
+        print ("************************************")
         print ("Processing response")
         result = processResponse(response, translated)
         #print ("************************************")
