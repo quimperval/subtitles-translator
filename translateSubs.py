@@ -4,6 +4,7 @@ from openai import OpenAI
 from sub import subtitle
 import configparser
 import os
+from time import sleep
 
 
 def chat_gpt(apiKey, prompt):
@@ -47,7 +48,7 @@ def linesToSubtitleObjects(linesList, subsList):
     return
     
 
-def parseStringResponseAllOK(responseArray, translated):
+def parseStringResponseAllOK(responseArray, translated, destFileName):
     """
     This method will check the response from openAi and based on the BEGIN and END tags of the 
     subtitles chunk it will return None if all the subtitles were translated
@@ -69,13 +70,23 @@ def parseStringResponseAllOK(responseArray, translated):
     subsList = list()
     linesToSubtitleObjects(linesList, subsList)
     
-    print ("Subtitles list size: " + str(len(subsList)))
+    print ("\x1b[KSubtitles Chunk list size: " + str(len(subsList)), end="\r")
+    destFileObj = open(destFileName, "a")
+    for xSub in subsList:
+        destFileObj.write(xSub.timeStartAndEnd+"\n")
+        for line in xSub.texts:
+            destFileObj.write(line+"\n")
+            destFileObj.write("\n")
+    destFileObj.close()    
+    
+    sleep(0.05)
     translated.extend(subsList)
     return None
 
-def parseStringPartialResponse(responseArray, translated):
+def parseStringPartialResponse(responseArray, translated, destFileName):
     firstLine = responseArray[0]
     if(firstLine!="---BEGIN---"):
+        print("First line is not begin")
         if(len(translated)>0):
             return translated[len(translated)-1].timeStartAndEnd
         else:
@@ -88,24 +99,28 @@ def parseStringPartialResponse(responseArray, translated):
         
         subsList = list()
         linesToSubtitleObjects(linesList, subsList)
-        #print("latestTime: " + subsList[len(subsList)-1].timeStartAndEnd)
-        #print("latest text", subsList[len(subsList)-1].texts)
+        print("latestTime: " + subsList[len(subsList)-1].timeStartAndEnd)
+        print("latest text", subsList[len(subsList)-1].texts)
         if(len(subsList)>1):
+            print("len is greater than 1")
             for i in range(0, len(subsList)-1):
-                #print("translated.append(subsList[i]): " + subsList[i].timeStartAndEnd)
-                #print(subsList[i].texts)
+                print("translated.append(subsList[i]): " + subsList[i].timeStartAndEnd)
+                print(subsList[i].texts)
                 translated.append(subsList[i])
                 
             return translated[len(translated)-1].timeStartAndEnd
         else:
+            print("len is NOT greater than 1")
             #This means all the chunk failed
+            print("All chunk failed")
             if(len(translated)>0):
+                print("returning " , str(translated[len(translated)-1].timeStartAndEnd))
                 return translated[len(translated)-1].timeStartAndEnd
             else:
                 return "START_FROM_SCRATCH"
         
 
-def processResponse(response, translated):
+def processResponse(response, translated, destFileName):
     """
     This method will check the response from openAi and based on the BEGIN and END tags of the
     subtitles chunk it will return None if all the subtitles were translated
@@ -119,6 +134,7 @@ def processResponse(response, translated):
     Returns:
     None or timestamp
     """
+    
     #print ("Parsing response")
     responseArray = response.split("\n")
     #print("Response lines: " + str(len(responseArray)))
@@ -127,13 +143,13 @@ def processResponse(response, translated):
     lastLine = responseArray[len(responseArray)-1]
     #print(lastLine)
     if(firstLine=="---BEGIN---" and lastLine=="---END---"):
-        print ("Processed completely from openAI")
+        print ("\x1b[KProcessed completely from openAI", end='\r')
         
-        parseStringResponseAllOK(responseArray, translated)
+        parseStringResponseAllOK(responseArray, translated, destFileName)
         return None
     else:
-        print ("Processed partially")
-        result = parseStringPartialResponse(responseArray, translated)
+        print ("\x1b[KProcessed partially", end='\r')
+        result = parseStringPartialResponse(responseArray, translated, destFileName)
         return result
         #In this case will be returned the timeStartAndEnd of the latest
         #successfully translated line
@@ -215,18 +231,21 @@ config.sections()
 # Read the configuration file
 config.read('configuration.ini')
 
-print ("Hello world! No call")
 fileName= sys.argv[1]
 mKey= config.get('DEFAULT', 'openaikey')
 #mKey = config['DEFAULT']['openaikey']
 destLanguage= sys.argv[2]
+
+destFileName=None
+if len(sys.argv)>3:
+    destFileName=sys.argv[3]
 
 if(destLanguage.lower()=="es"):
     destLanguage="Spanish"
 elif(destLanguage.lower()=="en"):
     destLanguage="English"
 
-prompt="Please translate the below subtitles to "+destLanguage+" and preserve the time marks. Do not translate the ---BEGIN--- and ---END--- marks:\n"
+prompt="Please translate the below subtitles to "+destLanguage+" and preserve the time marks. Do not translate the ---BEGIN--- and ---END--- marks and do not remove them, i.e. before the translated subtitles put a line with the text ---BEGIN---, and after the subtitles put a line with the text ---END---. If there are tags like <i> or <b>  dont translate them, just ignore them and once the text is translated to " +destLanguage + " put it when it was originally before translation to "+destLanguage + ", remember that the translation is to "+ destLanguage+ " language:\n"
 
 print ("Filename: " + fileName)
 
@@ -249,24 +268,71 @@ file.close()
 mSub = None
 subsList = list()
 processedTimeStamps = dict()
+#Here the lines of the origin file are processed. 
 for line in linesList:
     print (line, end="")
     if(re.search(timeRegex, line)!=None):
+        if(mSub!=None):
+            subsList.append(mSub)    
         mSub = subtitle()
         mSub.timeStartAndEnd = line
         continue
     elif(re.search(blankLine, line)!=None):
-        if(mSub!=None):
-            subsList.append(mSub)
-        mSub = None
+        continue
     else:
+
         if mSub ==None:
             print("Msub is none")
-        mSub.add_text(line)
+        try:
+            mSub.add_text(line)
+        except:
+            print("An exception happened while trying to add a line in the sub.")
+            print("Last line successfully processed is " + subsList[len(subsList)-1].timeStartAndEnd)
+
 
 if(mSub!=None):
     subsList.append(mSub)
+
+
+#Prepare the file name to be saved, and dump the retrieved subtitles to a file
+tempFile = os.path.basename(file.name)
+fileNameArray = tempFile.split(".")
+destFileObj = None
+if destFileName==None:
+    destFileName=""
+    if(fileNameArray[len(fileNameArray)-2]=="en" or fileNameArray[len(fileNameArray)-2]=="de" or fileNameArray[len(fileNameArray)-2]=="se"):
+        for i in range(0,len(fileNameArray)):
+            if(i==len(fileNameArray)-2):
+                destFileName = destFileName+"es"+"."
+            elif(i==len(fileNameArray)-1):
+                destFileName= destFileName+fileNameArray[i]
+            else:
+                destFileName= destFileName+fileNameArray[i]+"."
+            
+    else:
+        for i in range(0,len(fileNameArray)):
+            if(i==len(fileNameArray)-1):
+                destFileName = destFileName+"es"+"."+destFileName+fileNameArray[i]
+            else:
+                destFileName= destFileName+fileNameArray[i]+"."
+
+    directory = os.path.dirname(file.name)
+
+    if directory=="":
+        destPath=destFileName
+    else:
+        destPath=directory+"/"+destFileName
+        
+    destFileObj = open(destPath, "w")
+else:
+    destFileObj = open(destFileName, "w")
     
+destFileObj.close()
+print("Destfile: " + destFileName);
+
+
+#Create the file
+print("\n")
 #print ("Subtitles list: " ,(len(subsList)))
 position=0
 counter=0
@@ -275,10 +341,15 @@ calls=0
 temp = "---BEGIN---\n"
 translated = list()
 subsMap = dict()
+
 errorThreshold=10000
+
+
 errorCount=0
-chunkSize=20
+chunkSize=40
 while(position<size):
+    sleep(0.01)
+    print ("KAlready translated: " + str(len(translated)) + " of " +str(len(subsList))+ ": " + str(len(translated)*100/len(subsList)) + "%; Calling openAI...", end=" \r")
     #print("counter: ", str(counter))
     #print("position: ", str(position))
     xSub = subsList[position]
@@ -296,20 +367,21 @@ while(position<size):
         #print ("************************************")
         #print ("prompt: ")
         #print(prompt+temp)
-        print("Calling openAI...")
+        print("Calling openAI...", end='\r')
         response = chat_gpt(mKey, prompt+temp)
         print ("************************************")
         print (response)
         print ("************************************")
-        print ("Processing response")
-        result = processResponse(response, translated)
+        print ("Processing response", end='\r')
+        result = processResponse(response, translated, destFileName)
         #print ("************************************")
         #print("result: " + result)
         
         if(result!=None):
-            #print("Something went wrong, checking")
+            print("\x1b[KSomething went wrong, checking", end='\r')
             errorCount = errorCount+1
             if(errorCount>=errorThreshold):
+                print("\n")
                 print ("Giving up, errorThreshold was reached")
                 exit()
             if(result=="START_FROM_SCRATCH"):
@@ -333,37 +405,6 @@ while(position<size):
         #if(calls==1):
             #break;
         temp = "---BEGIN---\n"
-
-tempFile = os.path.basename(file.name);
-fileNameArray = tempFile.split(".")
-
-destFileName=""
-if(fileNameArray[len(fileNameArray)-2]=="en" or fileNameArray[len(fileNameArray)-2]=="de" or fileNameArray[len(fileNameArray)-2]=="se"):
-    for i in range(0,len(fileNameArray)):
-        if(i==len(fileNameArray)-2):
-            destFileName = destFileName+"es"+"."
-        elif(i==len(fileNameArray)-1):
-            destFileName= destFileName+fileNameArray[i]
-        else:
-            destFileName= destFileName+fileNameArray[i]+"."
-            
-else:
-    for i in range(0,len(fileNameArray)):
-        if(i==len(fileNameArray)-1):
-            destFileName = destFileName+"es"+"."+destFileName+fileNameArray[i]
-        else:
-            destFileName= destFileName+fileNameArray[i]+"."
-
-print (destFileName)
-directory = os.path.dirname(file.name)
-destPath=directory+"/"+destFileName
-print (destPath)
-destFileObj = open(destPath, "w")
-for mSub in translated:
-    destFileObj.write(mSub.timeStartAndEnd+"\n")
-    for line in mSub.texts:
-        destFileObj.write(line+"\n")
-    destFileObj.write("\n")
-destFileObj.close()
+print("\n")
 
 exit()
